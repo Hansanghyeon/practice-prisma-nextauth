@@ -1,0 +1,78 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL") // Only needed when using a cloud provider that doesn't support the creation of new databases, like Heroku. Learn more: https://pris.ly/d/migrate-shadow
+}
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  // 이렇게한다고 DB에 컬럼이 추가되는 것은 아니다.
+  accounts      Account[]
+  sessions      Session[]
+  posts            Post[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ================== Post ==================
+
+model Post {
+  id        String   @id @default(cuid())
+  authorID  String
+  title     String
+  // 마크다운의 내용을 저장할때는 어떻게하지?
+  content   String?
+  createdAt DateTime @default(now())
+  excerpt   String
+  // state컬럼이고 draft, published, deleted가 있다. VARCHAR였는데 prisma에서는?
+  status    String   @default("draft")
+  // password
+  password  String?
+  // slug
+  // slug이고 uuid로 만들어진다.
+  slug      String   @unique
+  type      String   @default("post")
+
+  author    User     @relation(fields: [authorID], references: [id], onDelete: Cascade)
+}
